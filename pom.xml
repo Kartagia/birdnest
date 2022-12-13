@@ -26,17 +26,55 @@
       <version>4.11</version>
       <scope>test</scope>
     </dependency>
-  
+
     <dependency>
       <groupId>javax</groupId>
       <artifactId>javaee-api</artifactId>
       <version>8.0.1</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.glassfish.jersey.containers</groupId>
+      <!-- if your container implements Servlet API older than 3.0, use "jersey-container-servlet-core"  -->
+      <artifactId>jersey-container-servlet</artifactId>
+      <version>2.37</version>
+    </dependency>
+    <!-- Required only when you are using JAX-RS Client -->
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>2.37</version>
+    </dependency>
+  
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-servlet</artifactId>
+      <version>1.19.4</version>
+    </dependency>
+  
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>1.19.4</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.glassfish.jersey.media</groupId>
+      <artifactId>jersey-media-json-processing</artifactId>
+      <version>3.1.0</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>1.19.4</version>
+    </dependency>
   </dependencies>
 
   <build>
     <finalName>birdnest</finalName>
-    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
+    <pluginManagement>
+      <!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
