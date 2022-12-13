@@ -1,10 +1,55 @@
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.StringTokenizer;
+
+import javax.json.JsonValue;
 
 /**
  * Pilot contains the pilot information.
  */
 public class Pilot {
     
+    /**
+     * Invalid expire time message.
+     */
+    private static final String INVALID_EXPIRE_TIME_MESSAGE = "Pilot has no expiration time or the time is in future";
+
+    /**
+     * Invalid distance to the nest message.
+     */
+    private static final String INVALID_DISTANCE_TO_NEST_MESSAGE = "Invalid distance to nest";
+
+    /**
+     * The invalid drone serila number message.
+     */
+    private static final String INVALID_DRONE_SARIAL_NUMBER_MESSAGE = "Invalid drone sarial number";
+
+    /**
+     * The invalid pilot identifier message.
+     */
+    private static final String INVALID_PILOT_IDENTIFIER_MESSAGE = "Invalid pilot identifier";
+
+    /**
+     * The invalid last name message.
+     */
+    private static final String INVALID_LAST_NAME_MESSAGE = "Invalid last name";
+
+    /**
+     * The invalid first name message.
+     */
+    private static final String INVALID_FIRST_NAME_MESSAGE = "Invalid first name";
+
+    /**
+     * The invalid email address message.
+     */
+    private static final String INVALID_EMAIL_ADDRESS_MESSAGE = "Invalid email address";
+
+    /**
+     * The invalid phone number message.
+     */
+    public static final String INVALID_PHONE_NUMBER_MESSAGE = "Invalid phone number";
+
     /**
      * Does the pilot object exist in building mode. Building mode allows setting values which are later locked
      * as constant.
@@ -32,11 +77,6 @@ public class Pilot {
     private String email_;
 
     /**
-     * The name of the pilot.
-     */
-    private String name_;
-
-    /**
      * The pilot drone serial number.
      */
     private String droneSerialNumber_; 
@@ -46,6 +86,21 @@ public class Pilot {
      * the sensor range. In millimeters.
      */
     private double distance_;
+
+    /**
+     * The pilot identifier.
+     */
+    private String pilotId_;
+
+    /**
+     * The pilot's first name.
+     */
+    private String firstName_;
+
+    /**
+     * The pilot's last name.
+     */
+    private String lastName_;
 
     /**
      * Bean cosntructor creating a new pilot. The pilot is not valid.
@@ -64,11 +119,19 @@ public class Pilot {
      * @param phoneNumber The phone number of the pilot.
      */
     public Pilot(String droneSerial, ZonedDateTime detectionTime, double distanceToNest, String name, String email, String phoneNumber) {
-        this.droneSerialNumber_ = droneSerial;
-        this.distance_ = distanceToNest;
-        this.name_ = name;
-        this.email_ = email;
-        this.phone_ = phoneNumber;
+        setDroneSerial(droneSerial);
+        setClosestDistanceToNest(distanceToNest);
+        setEmail(email);
+        setPhoneNumber(phoneNumber);
+        if (name == null) {
+            // Using default name.
+            setLastName("[Pilot of " + droneSerial + "]");
+        } else {
+            java.util.List<String> nameParts = Arrays.asList(name.split("\\s+"));
+            if (nameParts.size() < 2) throw new IllegalArgumentException("Full name is required!");
+            setFirstName(String.join(" ", nameParts.subList(0, nameParts.size()-1)));
+            setLastName(nameParts.get(nameParts.size()-1));
+        }
         setExpireTime(updateExpireTime(detectionTime));
         this.build();
     }
@@ -119,9 +182,14 @@ public class Pilot {
     public synchronized void build() throws IllegalArgumentException {
         if (this.building) {
             // We do not need to do anything unless building.
-            if (!validDroneSerial(getDroneSerialNumber())) throw new IllegalArgumentException("Invalid drone sarial number");
-            if (!validClosestDistanceToNest(getClosestDistanceToNest())) throw new IllegalArgumentException("Invalid distance to nest");
-            if (!validExpireTime(getExpireTime())) throw new IllegalArgumentException("Pilot has no expiration time or the time is in future");
+            if (!validFirstName(getFirstName())) throw new IllegalArgumentException(INVALID_FIRST_NAME_MESSAGE);
+            if (!validLastName(getLastName())) throw new IllegalArgumentException(INVALID_LAST_NAME_MESSAGE);
+            if (!validPilotId(getPilotId())) throw new IllegalArgumentException(INVALID_PILOT_IDENTIFIER_MESSAGE);
+            if (!validEmail(getEmail())) throw new IllegalArgumentException(INVALID_EMAIL_ADDRESS_MESSAGE);
+            if (!validPhoneNumber(getPhoneNumber())) throw new IllegalArgumentException(INVALID_PHONE_NUMBER_MESSAGE);
+            if (!validDroneSerial(getDroneSerialNumber())) throw new IllegalArgumentException(INVALID_DRONE_SARIAL_NUMBER_MESSAGE);
+            if (!validClosestDistanceToNest(getClosestDistanceToNest())) throw new IllegalArgumentException(INVALID_DISTANCE_TO_NEST_MESSAGE);
+            if (!validExpireTime(getExpireTime())) throw new IllegalArgumentException(INVALID_EXPIRE_TIME_MESSAGE);
             
             // The test passed. Ceasing building.
             this.building = false;
@@ -151,8 +219,8 @@ public class Pilot {
      * 
      * @param distanceToNest The new distance to the next.
      */
-    public synchronized void setDistance(double distanceToNest) {
-        if (distanceToNest < getClosestDistanceToNest()) {
+    public synchronized void setClosestDistanceToNest(double distanceToNest) {
+        if (this.isIncomplete() || distanceToNest < getClosestDistanceToNest()) {
             // The drone is closer to the nest than it has been before.
             this.distance_ = distanceToNest;
         }
@@ -206,27 +274,16 @@ public class Pilot {
      * @return The name of the pilot.
      */
     public String getName() {
-        return this.name_;
+        String firstName = this.getFirstName();
+        String lastName = this.getLastName();
+        return String.format("%s%s%s",
+        (firstName == null ? "" : firstName), 
+        (firstName == null || lastName == null ? "" : " "), 
+        (lastName == null ? "" : lastName)
+        );
     }
 
-    /**
-     * Get the email of the pilot.
-     * 
-     * @return The email of the pilot.
-     */
-    public String getEmail() {
-        return this.email_;
-    }
-
-    /**
-     * Get the phone number of the pilot.
-     * 
-     * @return The phone number of the pilot.
-     */
-    public String getPhoneNumber() {
-        return this.phone_;
-    }
-
+ 
     /**
      * Get the expire time for given detection time.
      * 
@@ -240,6 +297,252 @@ public class Pilot {
         } else {
             return null;
         }
+    }
+
+    /**
+     * Get the first name of the pilot.
+     * 
+     * @return The first name of the pilot.
+     */
+    public String getFirstName() {
+        return this.firstName_;
+    }
+
+    /**
+     * Test validity of the first name.
+     * 
+     * @param firstName The tested first name.
+     * @return True, if and only if the value is valid.
+     */
+    public boolean validFirstName(String firstName) {
+        return firstName == null || !firstName.isBlank();
+    }
+
+    /**
+     * Set the first name of the pilot.
+     * 
+     * @param firstName The new first name of the pilot.
+     * @throws IllegalArgumentException The given first name isinvalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setFirstName(String firstName) {
+        if (validFirstName(firstName)) {
+            if (this.isIncomplete()) {
+                this.firstName_ = firstName;
+            } else {
+                throw new IllegalStateException("Cannot change the value after consruction");
+            }
+        } else {
+            throw new IllegalArgumentException(INVALID_PILOT_IDENTIFIER_MESSAGE);
+        }
+    }
+
+    /**
+     * Set the first name of the pilot.
+     * 
+     * @param firstName The new first name of the pilot.
+     * @throws IllegalArgumentException The given first name isinvalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setFirstName(JsonValue firstName) throws IllegalArgumentException, IllegalStateException {
+        this.setFirstName(firstName == null ? null : firstName.toString());
+    }
+
+    /**
+     * Get the last name of the pilot.
+     * 
+     * @return The last name of the pilot.
+     */
+    public String getLastName() {
+        return this.lastName_;
+    }
+
+    /**
+     * Test validity of the last name.
+     * 
+     * @param lastName The tested last name.
+     * @return True, if and only if the value is valid.
+     */
+    public boolean validLastName(String lastName) {
+        return lastName != null && !lastName.isBlank();
+    }
+
+    /**
+     * Set the last name of the pilot.
+     * 
+     * @param lastName The new last name of the pilot.
+     * @throws IllegalArgumentException The given last name is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setLastName(String lastName) {
+        if (validLastName(lastName)) {
+            if (this.isIncomplete()) {
+                this.lastName_ = lastName;
+            } else {
+                throw new IllegalStateException("Cannot change the value after consruction");
+            }
+        } else {
+            throw new IllegalArgumentException(INVALID_PILOT_IDENTIFIER_MESSAGE);
+        }
+    }
+
+    /**
+     * Set the last name of the pilot.
+     * 
+     * @param lastName The new last name of the pilot.
+     * @throws IllegalArgumentException The given last name is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setLastName(JsonValue lastName) throws IllegalArgumentException, IllegalStateException {
+        this.setLastName(lastName == null ? null : lastName.toString());
+    }
+
+    /**
+     * Get the email of the pilot.
+     * 
+     * @return The email of the pilot.
+     */
+    public String getEmail() {
+        return this.email_;
+    }
+
+    /**
+     * Test validity of the email.
+     * 
+     * @param email The tested email.
+     * @return True, if and only if the value is valid.
+     */
+    public boolean validEmail(String email) {
+        return email != null && !email.isBlank();
+    }
+
+    /**
+     * Set the email of the pilot.
+     * 
+     * @param email The new email of the pilot.
+     * @throws IllegalArgumentException The given email is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setEmail(String email) {
+        if (validEmail(email)) {
+            if (this.isIncomplete()) {
+                this.email_ = email;
+            } else {
+                throw new IllegalStateException("Cannot change the value after consruction");
+            }
+        } else {
+            throw new IllegalArgumentException(INVALID_PILOT_IDENTIFIER_MESSAGE);
+        }
+    }
+
+    /**
+     * Set the email of the pilot.
+     * 
+     * @param email The new email of the pilot.
+     * @throws IllegalArgumentException The given email is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setEmail(JsonValue email) throws IllegalArgumentException, IllegalStateException {
+        this.setEmail(email == null ? null : email.toString());
+    }
+
+    /**
+     * Get the phone number of the pilot.
+     * 
+     * @return The phone number of the pilot.
+     */
+    public String getPhoneNumber() {
+        return this.phone_;
+    }
+
+    /**
+     * Test validity of the phone number.
+     * 
+     * @param PhoneNumber The tested phone number.
+     * @return True, if and only if the value is valid.
+     */
+    public boolean validPhoneNumber(String PhoneNumber) {
+        return PhoneNumber != null && !PhoneNumber.isBlank();
+    }
+
+    /**
+     * Set the phone number of the pilot.
+     * 
+     * @param phoneNumber The new phone number of the pilot.
+     * @throws IllegalArgumentException The given phone number is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setPhoneNumber(String phoneNumber) {
+        if (validPhoneNumber(phoneNumber)) {
+            if (this.isIncomplete()) {
+                this.phone_ = phoneNumber;
+            } else {
+                throw new IllegalStateException("Cannot change the value after consruction");
+            }
+        } else {
+            throw new IllegalArgumentException(INVALID_PHONE_NUMBER_MESSAGE);
+        }
+    }
+
+    /**
+     * Set the first name of the pilot.
+     * 
+     * @param phoneNumber The new first name of the pilot.
+     * @throws IllegalArgumentException The given first name is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setPhoneNumber(JsonValue phoneNumber) throws IllegalArgumentException, IllegalStateException {
+        this.setPhoneNumber(phoneNumber == null ? null : phoneNumber.toString());
+    }
+
+    /**
+     * Get the idenifier of the pilot.
+     * 
+     * @return The pilot identifier number.
+     */
+    public String getPilotId() {
+        return this.pilotId_;
+    }
+
+    /**
+     * Test validity of the pilot identifier.
+     * 
+     * @param pilotId The pilot identifier.
+     * @return True, if and only if hte pilot identifier is valid.
+     */
+    public boolean validPilotId(String pilotId) {
+        return pilotId != null && !pilotId.isBlank();
+    }
+
+    /**
+     * Set the pilot identifier.
+     * 
+     * @param pilotId The new pilot identifier.
+     * @throws IllegalArgumentException The given pilot identifier is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setPilotId(String pilotId) {
+        if (validPilotId(pilotId)) {
+            if (this.isIncomplete()) {
+                this.pilotId_ = pilotId;
+            } else {
+                throw new IllegalStateException("Cannot change the value after consruction");
+            }
+        } else {
+            throw new IllegalArgumentException(INVALID_PILOT_IDENTIFIER_MESSAGE);
+        }
+    }
+
+
+    /**
+     * Set the pliot identifier.
+     * 
+     * @param pilotId The new pilot identifier.
+     * @throws IllegalArgumentException The given pilot identifier is invalid.
+     * @throws IllegalStateException The built pilot does not support change of the value.
+     */
+    public void setPilotId(JsonValue pilotId) throws IllegalArgumentException, IllegalStateException {
+        this.setPilotId(pilotId == null ? null : pilotId.toString());
     }
 
     /**

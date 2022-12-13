@@ -143,7 +143,7 @@ public class BirdnestServlet extends HttpServlet {
                                     if (dronePilot.isPresent()) {
                                         // Updating the pilot.
                                         Pilot pilot = dronePilot.get();
-                                        pilot.setDistance(distance);
+                                        pilot.setClosestDistanceToNest(distance);
                                         pilot.setExpireTime(pilot.updateExpireTime(violationTime));
                                     } else {
                                         // Creating new pilot.

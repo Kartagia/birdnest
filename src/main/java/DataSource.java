@@ -8,6 +8,14 @@ import java.util.Collections;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientHandlerException;
+import com.sun.jersey.api.client.UniformInterfaceException;
+import com.sun.jersey.api.client.WebResource;
+import com.sun.jersey.api.client.config.ClientConfig;
+import com.sun.jersey.api.client.config.DefaultClientConfig;
+
+import javax.ws.rs.core.UriBuilder;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -34,6 +42,30 @@ import org.xml.sax.SAXException;
  * </p>
  */
 public class DataSource {
+
+    /**
+     * The rest client service performing the REST client request for data.
+     */
+    private WebResource restClientService_;
+
+    /**
+     * Initialize rest client.
+     * 
+     * @param host The REST host.
+     * @param resourcePath The resource path to the resource.
+     * @throws IllegalArgumentException The given host or resource path was invalid.
+     * @throws IllegalStateException The rest client has pready been initialized.
+     */
+    protected void initRestClient(String host, String resourcePath) throws IllegalArgumentException, IllegalStateException {
+        if (this.restClientService_ == null) {
+            ClientConfig config = new DefaultClientConfig();
+            Client client = Client.create(config);
+            restClientService_ = client.resource(UriBuilder.fromUri(host).build()).path(resourcePath);    
+        } else {
+            throw new IllegalStateException(PilotLoader.REST_CLIENT_ALREADY_INITIALIXED_MESSAGE);
+        }
+    }
+
 
     /**
      * The default attribute containing the capture timestamp.
