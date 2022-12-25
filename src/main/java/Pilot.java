@@ -1,7 +1,5 @@
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.StringTokenizer;
 
 import javax.json.JsonValue;
 
@@ -413,7 +411,7 @@ public class Pilot {
      * @return True, if and only if the value is valid.
      */
     public boolean validEmail(String email) {
-        return email != null && !email.isBlank();
+        return email == null || !email.isBlank();
     }
 
     /**
@@ -458,11 +456,11 @@ public class Pilot {
     /**
      * Test validity of the phone number.
      * 
-     * @param PhoneNumber The tested phone number.
+     * @param phoneNumber The tested phone number.
      * @return True, if and only if the value is valid.
      */
-    public boolean validPhoneNumber(String PhoneNumber) {
-        return PhoneNumber != null && !PhoneNumber.isBlank();
+    public boolean validPhoneNumber(String phoneNumber) {
+        return phoneNumber == null || !phoneNumber.isBlank();
     }
 
     /**
@@ -492,7 +490,7 @@ public class Pilot {
      * @throws IllegalStateException The built pilot does not support change of the value.
      */
     public void setPhoneNumber(JsonValue phoneNumber) throws IllegalArgumentException, IllegalStateException {
-        this.setPhoneNumber(phoneNumber == null ? null : phoneNumber.toString());
+        this.setPhoneNumber(phoneNumber == null || phoneNumber.toString().isBlank() ? null : phoneNumber.toString());
     }
 
     /**

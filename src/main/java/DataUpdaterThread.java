@@ -1,6 +1,5 @@
 import java.io.IOException;
 import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 
 import org.xml.sax.SAXException;
 
@@ -24,7 +23,7 @@ public class DataUpdaterThread extends Thread {
     /**
      * The data of the sensor.
      */
-    private volatile DataSource data_ = new DataSource();
+    private volatile DronesDataSource data_;
 
     /**
      * The most recent update time of the current updater.
@@ -43,7 +42,7 @@ public class DataUpdaterThread extends Thread {
      * @param dataSource The data source.
      * @throws IllegalArgumentException The given source was invalid.
      */
-    public DataUpdaterThread(DataSource dataSource) throws IllegalArgumentException {
+    public DataUpdaterThread(DronesDataSource dataSource) throws IllegalArgumentException {
         if (dataSource == null) {
             throw new IllegalArgumentException("Undefined data is not accepted");
         }
@@ -63,7 +62,7 @@ public class DataUpdaterThread extends Thread {
                 // Update the data.
                 data_.update();
 
-                // UPdating the update timer.
+                // Updating the update timer.
                 setUpdateTime(data_.getUpdateTime());
                 retries = 0;
             } catch (IOException ioe) {
@@ -89,37 +88,20 @@ public class DataUpdaterThread extends Thread {
                 }
             } else {
                 // Calculating delay to the next update.
-                ZonedDateTime updateMoment = getUpdateTime().plus(getUpdateInterval(), ChronoUnit.MILLIS);
-                ZonedDateTime now = ZonedDateTime.now();
-                long diff = updateMoment.toEpochSecond() - now.toEpochSecond();
-                long waitTime = 0;
-                if (diff < 0) {
-                    while (diff < 0) {
-                        // we have a problem - the current moment is after the update moment.
-                        // - Waiting one millisecond per retry.
-                        waitTime = retries;
+                ZonedDateTime updateMoment = getUpdateTime();
+                if (updateMoment != null) {
+                    try {
+                        // Perform default sleep time to the update interval.
+                        sleep(this.getUpdateInterval());
+                    } catch (InterruptedException e) {
                     }
                 } else {
-                    // The update time is in the future - calculating the update time after the
-                    // update time.
-                    // Every iteartion adds half to the update time.
-                    waitTime = getUpdateInterval() / 2;
-                    while (updateMoment.compareTo(now.plus(waitTime, ChronoUnit.MILLIS)) > 0) {
-                        // The update time is still before
-                        waitTime += waitTime / 2 + waitTime % 2;
+                    // The update moment is undefined.
+                    try {
+                        // Perform default sleep of 100 ms.
+                        sleep(100);
+                    } catch (InterruptedException e) {
                     }
-                }
-                try {
-                    if (waitTime == 0) {
-                        // The wait time is zero - this mean the data was just updated with an outdated
-                        // data.
-                        sleep(0, 1000);
-                    } else {
-                        // Performing wait.
-                        sleep(waitTime);
-                    }
-                } catch (InterruptedException ie) {
-                    // The start was interrupted.
                 }
             }
         }

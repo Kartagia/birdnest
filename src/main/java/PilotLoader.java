@@ -2,16 +2,27 @@
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.lang.System.Logger.Level;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.Map.Entry;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonValue;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
 
@@ -59,9 +70,11 @@ public class PilotLoader {
      * 
      * @param value the quoted value.
      * @return The strign reprsentation of the given value. The value is
-     *  the string representation of the given value quoted, if the value, and
-     *  its string representation are defined. Otherwise, the string {@link #UNDEFINED_VALUE_STRING}
-     *  is returned.
+     *         the string representation of the given value quoted, if the value,
+     *         and
+     *         its string representation are defined. Otherwise, the string
+     *         {@link #UNDEFINED_VALUE_STRING}
+     *         is returned.
      */
     public static String quoteIfPresent(Object value) {
         String stringRep = value == null ? null : value.toString();
@@ -73,9 +86,34 @@ public class PilotLoader {
     }
 
     /**
-     * The rest clietn service performing the REST client request for pilot data.
+     * PilotReader reads pilot data from given input stream.
      */
-    private WebResource restClientService_ = null;
+    public static class PilotReader implements Function<InputStream, JsonObject> {
+
+        /**
+         * Creates a new pilot reader. The reader has no error handlers.
+         */
+        public PilotReader() {
+        }
+
+        /**
+         * Reads the pilot information from the data source.
+         * 
+         * @param stream The input stream from which the pilot data is read.
+         * @return Pilot, if the data source was solid. An undefined (null) value,
+         *         if any errors occured.
+         */
+        public JsonObject apply(InputStream stream) {
+            // Reads the pilot data from the given stream.
+            return Json.createReader(stream).readObject();
+        }
+
+    }
+
+    /**
+     * 
+     */
+    RestDataSource<JsonObject> dataSource_;
 
     /**
      * The expiration time of the pilot data in minutes.
@@ -83,31 +121,29 @@ public class PilotLoader {
     private int expirationTimeInMinutes_ = Pilot.DEFAULT_EXPIRATION_TIMEOUT;
 
     /**
+     * IO error handlers.
+     */
+    private java.util.List<Consumer<? super IOException>> ioErrorHandlers_ = new java.util.ArrayList<>();
+
+    /**
      * Create pilot laoder for given host and base rest path.
      * 
-     * @param host The host of the 
+     * @param host         The host of the
      * @param resourcePath The resource path without parameters.
      * @throws IllegalArgumentException The given host or resource path is invalid.
      */
     public PilotLoader(String host, String resourcePath) throws IllegalArgumentException {
-        initRestClient(host, resourcePath);
-    }
-
-    /**
-     * Initialize rest client.
-     * 
-     * @param host The REST host.
-     * @param resourcePath The resource path to the resource.
-     * @throws IllegalArgumentException The given host or resource path was invalid.
-     * @throws IllegalStateException The rest client has pready been initialized.
-     */
-    protected void initRestClient(String host, String resourcePath) throws IllegalArgumentException, IllegalStateException {
-        if (this.restClientService_ == null) {
-            ClientConfig config = new DefaultClientConfig();
-            Client client = Client.create(config);
-            restClientService_ = client.resource(UriBuilder.fromUri(host).build()).path(resourcePath);    
-        } else {
-            throw new IllegalStateException(REST_CLIENT_ALREADY_INITIALIXED_MESSAGE);
+        try {
+            dataSource_ = new RestDataSource<JsonObject>(new URI("https", host, resourcePath, null),
+                    new PilotReader(),
+                    new RestParameter<String>("serialNumber",
+                            Pattern.compile("[-\\]w+"),
+                            (String x) -> (x),
+                            (String x) -> (x)));
+        } catch (URISyntaxException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new IllegalArgumentException("Invalid rest uri", e);
         }
     }
 
@@ -126,24 +162,24 @@ public class PilotLoader {
         }
 
         try {
-            String pilotString = restClientService_.path(droneSerial).accept(MediaType.APPLICATION_JSON).get(String.class);
-            JsonObject json = Json.createReader(new StringReader(pilotString)).readObject();
+            JsonObject json = this.dataSource_.get(Collections.singletonList(droneSerial));
+
             Pilot pilot = new Pilot();
-            for (Entry<String, JsonValue> entry: json.entrySet()) {
+            for (Entry<String, JsonValue> entry : json.entrySet()) {
                 try {
                     Method method = new PropertyDescriptor(entry.getKey(), Pilot.class).getWriteMethod();
                     if (method == null) {
-                        System.getLogger(Pilot.class.getName()).log(Level.INFO, READ_ONLY_PROPERTY_FORMAT_STRING, 
-                        quoteIfPresent(entry.getKey()), "Pilot", quoteIfPresent(entry.getValue()));    
+                        System.getLogger(Pilot.class.getName()).log(Level.INFO, READ_ONLY_PROPERTY_FORMAT_STRING,
+                                quoteIfPresent(entry.getKey()), "Pilot", quoteIfPresent(entry.getValue()));
                     } else {
                         method.invoke(pilot, entry.getValue());
                     }
                 } catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
                     // The property is not supported by the bean.
-                    System.getLogger(Pilot.class.getName()).log(Level.INFO, UNKNOWN_PROPERTY_FORMAT_STRING, 
-                    quoteIfPresent(entry.getKey()), "Pilot", quoteIfPresent(entry.getValue()));
+                    System.getLogger(Pilot.class.getName()).log(Level.INFO, UNKNOWN_PROPERTY_FORMAT_STRING,
+                            quoteIfPresent(entry.getKey()), "Pilot", quoteIfPresent(entry.getValue()));
                 }
-                
+
             }
             pilot.setClosestDistanceToNest(violationDistance);
             pilot.setDroneSerial(droneSerial);
@@ -153,7 +189,9 @@ public class PilotLoader {
         } catch (UniformInterfaceException httpError) {
             throw new java.io.EOFException("Http error: " + quoteIfPresent(httpError.getMessage()));
         } catch (ClientHandlerException streamCorrupted) {
-            throw new java.io.StreamCorruptedException("Invalid response content " + quoteIfPresent(streamCorrupted.getMessage()));
+            throw new java.io.StreamCorruptedException(
+                    "Invalid response content " + quoteIfPresent(streamCorrupted.getMessage()));
+
         }
     }
 

@@ -1,15 +1,9 @@
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
+import java.io.PrintWriter;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -26,6 +20,26 @@ import org.w3c.dom.Element;
 public class BirdnestServlet extends HttpServlet {
 
     /**
+     * The default report data host.
+     */
+    public static final String DEFAULT_REPORT_DATA_HOST = DronesDataSource.DEFAULT_DRONE_REPORT_HOST;
+
+    /**
+     * The default drone data report rest resource path.
+     */
+    public static final String DEFAULT_REPORT_DATA_PATH = DronesDataSource.DEFAULT_DRONE_REPORT_REST_PATH;
+
+    /**
+     * Default pilot data rest path without parameters.
+     */
+    public static final String DEFAULT_PILOT_DATA_RESOURCE_PATH = "/birdnest/pilots/";
+
+    /*
+     * Default pilot data host.
+     */
+    public static final String DEFAULT_PILOT_DATA_HOST = DEFAULT_REPORT_DATA_HOST;
+
+    /**
      * The violating pilots list. This list is modified during updates.
      */
     private volatile java.util.List<Pilot> violatingPilots = new ArrayList<>();
@@ -33,7 +47,7 @@ public class BirdnestServlet extends HttpServlet {
     /**
      * The data source.
      */
-    private DataSource source_ = null;
+    private DronesDataSource source_ = null;
 
     /**
      * The thread updating the data.
@@ -43,7 +57,7 @@ public class BirdnestServlet extends HttpServlet {
     /**
      * The loader of the pilots.
      */
-    public PilotLoader pilotLoader = new PilotLoader("assignments.reaktor.com", "/birdnest/pilots/");
+    public PilotLoader pilotLoader = new PilotLoader(DEFAULT_REPORT_DATA_HOST, DEFAULT_PILOT_DATA_RESOURCE_PATH);
 
     /**
      * Remove expired pilots.
@@ -222,7 +236,38 @@ public class BirdnestServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.getWriter().append("Served at:").append(request.getContextPath());
+            
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        out.append("<!-- Served at:").append(request.getContextPath()).append("-->");        
+        outputViolatingPilotTable(out);
+    }
+
+    /**
+     * Output vioalting pilots. 
+     * 
+     * @param request
+     * @param out
+     */
+    public void outputViolatingPilotTable(PrintWriter out) {
+        out.append("<table>");
+        out.append("<caption>DMZ violating drone pilots</caption>");
+        out.append("<tr>");
+        out.append("<th>Pilot name</th><th>Email Address</th><th>Phone number</th><th>Closest distance to nest (mm)</th>");
+        out.append("</tr>");
+        synchronized (violatingPilots) {
+            for (Pilot pilot: violatingPilots) {
+                out.append("<tr>");
+                for (Object data: Arrays.asList(pilot.getName(), pilot.getEmail(), pilot.getPhoneNumber(), pilot.getClosestDistanceToNest())) {
+                    out.append("<td>");
+                    out.append(data.toString());
+                    out.append("</td>");
+                }
+                out.append("</tr>");
+            }
+        }
+        out.append("</table>");
     }
 
     @Override
