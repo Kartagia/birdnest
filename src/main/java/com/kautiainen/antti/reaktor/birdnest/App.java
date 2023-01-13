@@ -1,3 +1,4 @@
+package com.kautiainen.antti.reaktor.birdnest;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -24,6 +25,7 @@ public class App {
      * Data source of drone data.
      */
     private volatile static DronesDataSource source;
+
     /**
      * Output the drone list.
      * 
@@ -74,7 +76,7 @@ public class App {
                 BirdnestServlet.DEFAULT_PILOT_DATA_RESOURCE_PATH));
         // pilotDataUpdater.start();
 
-        // The loop performing the servlet.
+        // The loop performing the acquisition of the drones.
         try {
             final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             final PrintWriter writer = new PrintWriter(System.out);

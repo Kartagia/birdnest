@@ -6,11 +6,11 @@
   <display-name>Project Birdnest</display-name>
   <servlet>
     <servlet-name>ReactorBirdNestServlet</servlet-name>
-    <servlet-class>BirdNestServlet</servlet-class>
+    <servlet-class>com.kautiainen.antti.reaktor.birdnest.BirdNestServlet</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>ReactorBirdNestServlet</servlet-name>
-    <url-pattern>/welcome</url-pattern>
+    <url-pattern>/birdnest</url-pattern>
   </servlet-mapping>
   <welcome-file-list>
     <welcome-file>index.html</welcome-file>

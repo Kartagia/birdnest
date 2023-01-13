@@ -23,17 +23,6 @@ import javax.validation.constraints.NotNull;
 public class RestPath {
 
     /**
-     * The list containing the resource parts of the restful URI.
-     * The parameters within the path are represented with undefined values values.
-     */
-    private java.util.ArrayList<RestPath.RestResource> parts = new java.util.ArrayList<>();
-
-    /**
-     * The character set of the path.
-     */
-    private Charset charset_ = Charset.forName("UTF-8");
-
-    /**
      * Rest resource represents single rest resource of the path.
      */
     public class RestResource {
@@ -58,11 +47,20 @@ public class RestPath {
         public RestResource(String baseUri, RestParameter<?>... parameters) throws IllegalArgumentException {
             try {
                 this.baseUri = new URI(null, null, baseUri, null);
+                for (RestParameter<?> parameter: parameters) {
+                    addParameter(parameter);
+                }
             } catch (URISyntaxException use) {
                 throw new IllegalArgumentException("Invalid base URI", use);
             }
         }
 
+        /**
+         * Create a new rest resource with given rest parameters.
+         * @param resourceUI The resource URI. If undefined, the resource has no resource
+         * URI, but only contains parameters.
+         * @param restParameters The parameter definitions. 
+         */
         public RestResource(URI resourceUI, RestParameter<?>[] restParameters) {
             this.baseUri = resourceUI;
             if (restParameters != null) {
@@ -86,23 +84,6 @@ public class RestPath {
          */
         public List<RestParameter<?>> getRestParameters() {
             return Collections.unmodifiableList(this.parameters);
-        }
-
-        /**
-         * Add parameter to the resource.
-         * 
-         * @param parameter The added parameter.
-         * @throws IllegalArgumentException The added parameter was not accepted.
-         */
-        protected void addParameter(RestParameter<?> parameter) throws IllegalArgumentException {
-            if (parameter == null) throw new IllegalArgumentException("Invalid rest parameter.", 
-            new NullPointerException("Undefined parameter."));
-            if (getKnownParameterNames().contains(parameter.getName())) 
-                throw new IllegalArgumentException("Invalid rest parameter",
-                new IllegalArgumentException("Duplicate parameter name is not allowed."));
-
-            // Adding the parameter to the rest parameters.
-            this.parameters.add(parameter);
         }
 
         /**
@@ -183,23 +164,46 @@ public class RestPath {
         public URI getBaseUri() {
             return this.baseUri;
         }
+
+        /**
+         * Add parameter to the resource.
+         * 
+         * @param parameter The added parameter.
+         * @throws IllegalArgumentException The added parameter was not accepted.
+         */
+        protected void addParameter(RestParameter<?> parameter) throws IllegalArgumentException {
+            if (parameter == null) throw new IllegalArgumentException("Invalid rest parameter.", 
+            new NullPointerException("Undefined parameter."));
+            if (getKnownParameterNames().contains(parameter.getName())) 
+                throw new IllegalArgumentException("Invalid rest parameter",
+                new IllegalArgumentException("Duplicate parameter name is not allowed."));
+
+            // Adding the parameter to the rest parameters.
+            this.parameters.add(parameter);
+        }
+
+        public String toString() {
+            return this.getBaseUri().toString();
+        }
     }
 
     /**
-     * Is the path absolute path.
-     * 
-     * @return True, if and only if the path is absolute.
+     * The list containing the resource parts of the restful URI.
+     * The parameters within the path are represented with undefined values values.
      */
-    public boolean isAbsolute() {
-        return !parts.isEmpty() && parts.get(0).getBaseUri().isAbsolute();
-    }
+    private java.util.ArrayList<RestPath.RestResource> parts = new java.util.ArrayList<>();
 
+    /**
+     * The character set of the path.
+     */
+    private Charset charset_ = Charset.forName("UTF-8");
 
     /**
      * Create an empty rest path.
      */
     public RestPath() {
     }
+
 
     /**
      * Create a rest path with gi en base path and rest parameters.
@@ -212,9 +216,6 @@ public class RestPath {
         addResource(this.new RestResource(basePath, restParameters));
     }
 
-
-
-
     /**
      * Create a new rest path from given rest resources.
      * 
@@ -225,6 +226,18 @@ public class RestPath {
         for (RestResource resource: resources) {
             addResource(resource);
         }
+    }
+
+
+
+
+    /**
+     * Is the path absolute path.
+     * 
+     * @return True, if and only if the path is absolute.
+     */
+    public boolean isAbsolute() {
+        return !parts.isEmpty() && parts.get(0).getBaseUri().isAbsolute();
     }
 
     /**
@@ -365,6 +378,16 @@ public class RestPath {
      */
     public List<String> getKnownParameterNames() {
         return this.getRestParameters().stream().map( RestParameter::getName ).toList();
+    }
+
+
+    /**
+     * Get the resources of the current path.
+     * 
+     * @return The list of known resources.
+     */
+    public @NotNull List<RestResource> getRestResources() {
+        return java.util.Collections.unmodifiableList(this.parts);
     }
 
 }
